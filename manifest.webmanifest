@@ -1,0 +1,15 @@
+{
+  "name": "Diário do Cavaleiro",
+  "short_name": "Diário",
+  "description": "Checklist gamificado da minha gameplay de Hollow Knight.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080c18",
+  "theme_color": "#080c18",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
