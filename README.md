@@ -49,10 +49,17 @@ Cada item é `[tipo, título, dica, nomeNoWiki?, ícone?]`.
 
 ⚙ Configurações > **Exportar JSON** baixa os dois perfis. No outro aparelho: **Importar JSON**. Ali também estão o spoiler leve (até qual mundo está destravado) e o "Zerar perfil" (dois toques).
 
-## Supabase (opcional, desligado)
+## Link e publicação
 
-1. Rode `supabase/progress.sql` no seu projeto (tabela `progress`, uma linha por perfil, com RLS). Leia os comentários do arquivo antes.
-2. Copie `.env.example` para `.env` e preencha URL e chave anon.
-3. `npm run build` de novo.
+- Site: https://eusoulucasholanda.github.io/diario-cavaleiro/
+- Para publicar uma mudança: `npm run publicar` (gera o build e envia para a branch `gh-pages`; leva 1 a 2 minutos).
+- No celular: abra o link e use "Adicionar à tela inicial".
 
-Sem `.env`, o app usa só o armazenamento local. Com ele, puxa da nuvem ao abrir (vence o mais recente) e salva sozinho a cada mudança.
+## Login e nuvem (Supabase)
+
+- Projeto Supabase próprio: `diario-cavaleiro` (São Paulo), tabela `diario_progress` (SQL em `supabase/progress.sql`), uma linha por conta e perfil, com RLS: cada conta só lê e grava as próprias linhas.
+- A URL e a chave pública estão em `.env.production` (podem ficar públicas; quem protege os dados é o RLS).
+- Botão ☁ no topo: "Entrar" quando deslogado; logado, mostra "Salvo ✓" e salva sozinho 1 s depois de cada marcação. Tocar nele força salvar.
+- Ao entrar num aparelho, vence o perfil que foi mexido por último (nuvem ou aparelho).
+- Sem internet, continua salvando no aparelho e envia quando voltar.
+- Prints enviados pelo app NÃO vão para a nuvem (ficam no aparelho).
