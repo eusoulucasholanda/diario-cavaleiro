@@ -1,5 +1,5 @@
 // Service worker simples: rede primeiro, cache como reserva (funciona offline depois da 1ª visita).
-const CACHE = 'diario-cavaleiro-v1';
+const CACHE = 'diario-cavaleiro-v2';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
