@@ -23,5 +23,6 @@ export const w2: World = {
     ['npc', 'Visitar a cabana do Sheo', 'Mestre de prego (Nailmaster). Vale conhecer, ele ensina técnicas de prego mais tarde.', 'Nailmaster Sheo', 'person'],
     // --- novos ---
     ['npc', 'Libertar os Grubs da área', 'Confira no mapa quais jaulas faltam. (conferir quantos no wiki)', 'Grub', 'grub'],
+    ['charm', 'Baldur Shell', 'Escudo que bloqueia um golpe enquanto você cura. Fica depois do Elder Baldur, na saída para Howling Cliffs. (conferir no wiki)', 'Baldur Shell'],
   ],
 };

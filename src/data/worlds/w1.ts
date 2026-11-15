@@ -36,5 +36,7 @@ export const w1: World = {
     ['npc', 'Libertar os Grubs da área', 'Cada Grub libertado conta pro Grubfather. O mapa do Cornifer ajuda a achar as jaulas. (conferir quantos no wiki)', 'Grub', 'grub'],
     ['npc', 'Pale Ore da Encruzilhada', 'Necessário para o 2º upgrade do prego. (conferir localização no wiki)', 'Pale Ore', 'coin'],
     ['npc', 'Comprar a Wayward Compass (Iselda, 220 Geo)', 'Mostra onde você está quando o mapa está aberto. Iselda fica em Dirtmouth.', 'Wayward Compass', 'map'],
+    ['charm', 'Stalwart Shell (Sly, 200 Geo)', 'Fica mais tempo invencível depois de apanhar. Loja do Sly.', 'Stalwart Shell'],
+    ['charm', 'Longnail (Salubra, 300 Geo)', 'Aumenta um pouco o alcance do prego. Loja da Salubra.', 'Longnail'],
   ],
 };

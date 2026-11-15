@@ -22,14 +22,14 @@ export const IMAGES = {
   middle: { src: 'img/cavaleiro-meio.webp', pos: '35% 40%' } as Img,
   end: { src: 'img/cavaleiro-fim.webp', pos: '50% 30%' } as Img,
   maps: {
-    w1: 'img/mapa-w1.png',
-    w2: 'img/mapa-w2.png',
-    w3: 'img/mapa-w3.png',
-    w4: 'img/mapa-w4.png',
+    w1: 'img/mapa-w1.webp',
+    w2: 'img/mapa-w2.webp',
+    w3: 'img/mapa-w3.webp',
+    w4: 'img/mapa-w4.webp',
   } as Record<string, string>,
   forge: {
-    charms: 'img/tela-amuletos.png',
-    inventory: 'img/inventario.png',
+    charms: 'img/tela-amuletos.webp',
+    inventory: 'img/inventario.webp',
   },
   /*
     Foto por item (chefe, amuleto, NPC). A chave é o título do item exatamente como está nos dados.

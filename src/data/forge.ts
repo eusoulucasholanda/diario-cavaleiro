@@ -38,6 +38,9 @@ export const CHARMS: Charm[] = [
   ['Quick Focus', '3 slots', 'Salubra, 800 Geo. Cura mais rápido.', 'w1'],
   ['Soul Eater', '4 slots', 'Resting Grounds, mais pra frente. Ganha muito mais Soul por golpe.', 'later', true],
   ['Soul Catcher', '2 slots', 'Monte Ancestral. Versão menor do Soul Eater, ótima até lá.', 'w1', true],
+  // --- novos (amuletos que Lucas já tem, print de 15/11/2026) ---
+  ['Stalwart Shell', '2 slots', 'Sly, 200 Geo. Mais tempo invencível depois de apanhar.', 'w1'],
+  ['Baldur Shell', '2 slots', 'Depois do Elder Baldur, saída de Greenpath para Howling Cliffs. Bloqueia um golpe enquanto cura.', 'w2', true],
 ];
 
 export interface BuildInfo {

@@ -26,10 +26,11 @@ export const RANKS: [string, number][] = [
   ['Guerreiro de Hallownest', 95],
 ];
 
-/** Progresso já comprovado com prints (perfil Guerreiro, aplicado uma vez). */
+/** Progresso do perfil Guerreiro conferido nos prints do jogo de 15/11/2026 (aplicado só em aparelho novo, sem login). */
 export const SEED = {
-  done: ['w1:3', 'w1:14', 'w1:15', 'w2:1', 'w2:3', 'w2:6', 'w2:8', 'w3:2', 'w3:9'],
-  fk: ['c13', 'n0'],
+  done: ['w1:1', 'w1:3', 'w1:6', 'w1:11', 'w1:14', 'w1:15', 'w1:17', 'w1:20', 'w1:21', 'w1:22',
+    'w2:1', 'w2:3', 'w2:6', 'w2:8', 'w2:12', 'w3:0', 'w3:2', 'w3:7', 'w3:9', 'w4:6', 'w4:7'],
+  fk: ['c0', 'c6', 'c13', 'c18', 'c19', 'n0', 'n4'],
 };
 
 export const wikiUrl = (name: string) =>
