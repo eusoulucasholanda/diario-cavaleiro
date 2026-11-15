@@ -54,6 +54,9 @@ export function WorldView({ world, index, done, locked, onToggle }: Props) {
         </div>
       )}
 
+      <ImageSlot slot="world-middle" src={IMAGES.worldMiddle.src} pos={IMAGES.worldMiddle.pos}
+        label="Cavaleiro · meio da página" hint={IMAGES.worldMiddle.src} ratio="21 / 9" className="wide" />
+
       {GROUPS.map((g) => {
         const entries = world.items.map((it, i) => ({ it, i })).filter(({ it }) => it[0] === g.type);
         if (!entries.length) return null;

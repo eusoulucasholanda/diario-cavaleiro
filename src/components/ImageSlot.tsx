@@ -10,13 +10,14 @@ interface Props {
   ratio?: string;         // aspect-ratio CSS
   caption?: boolean;      // mostra legenda + data editáveis
   className?: string;
+  pos?: string;           // object-position do recorte
 }
 
 /*
   Ordem: print enviado pelo app (IndexedDB) > arquivo do images.ts > placeholder.
   Para trocar pelo app: tocar em "trocar print" ou focar o quadro e colar (Ctrl+V).
 */
-export function ImageSlot({ slot, src, label, hint, ratio = '16 / 9', caption, className = '' }: Props) {
+export function ImageSlot({ slot, src, label, hint, ratio = '16 / 9', caption, className = '', pos }: Props) {
   const [local, setLocal] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [cap, setCap] = useState(() => readPref('cap:' + slot));
@@ -54,7 +55,8 @@ export function ImageSlot({ slot, src, label, hint, ratio = '16 / 9', caption, c
       <div className="imgslot-frame" style={{ aspectRatio: ratio }} tabIndex={0} onPaste={onPaste}
         aria-label={`${label}. Foque e cole um print para trocar.`}>
         {shown ? (
-          <img src={shown} alt={label} loading="lazy" onError={() => !local && setFailed(true)} />
+          <img src={shown} alt={label} loading="lazy" style={local ? undefined : { objectPosition: pos }}
+            onError={() => !local && setFailed(true)} />
         ) : (
           <div className="imgslot-ph">
             <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4">

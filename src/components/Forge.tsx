@@ -82,7 +82,8 @@ export function Forge({ profile, done, fk, unlocked, onToggleFk }: Props) {
         </ul>
       </div>
 
-      <ImageSlot slot="middle" src={IMAGES.middle} label="Cavaleiro · meio da página" hint={IMAGES.middle} ratio="21 / 9" className="wide" />
+      <ImageSlot slot="middle" src={IMAGES.middle.src} pos={IMAGES.middle.pos} label="Cavaleiro · meio da página"
+        hint={IMAGES.middle.src} ratio="21 / 9" className="wide" />
 
       <div className="card">
         <div className="group-head"><h3>Amuletos</h3><span>{charmDone}/{CHARMS.length}</span></div>

@@ -1,32 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import type { Palette, ProfileId } from './types';
 import { WORLDS } from './data/worlds';
 import { FORGE_PAL } from './data/forge';
 import { RANKS, XP } from './data/game';
 import { IMAGES } from './images';
 import { emptyProfile, load, readPref, save, writePref, type AppState, type ProfileState } from './lib/storage';
-import { pull, push, syncEnabled } from './lib/sync';
+import { pull, push, signOut, supa, syncEnabled } from './lib/sync';
 import { Scene } from './components/Scene';
 import { Particles } from './components/Particles';
 import { WorldView } from './components/WorldView';
 import { Forge } from './components/Forge';
 import { Settings } from './components/Settings';
+import { Login } from './components/Login';
 import { ImageSlot } from './components/ImageSlot';
 import { Bar } from './components/Bits';
 
 const ALL_ITEMS = WORLDS.flatMap((w) => w.items.map((it, i) => ({ key: `${w.id}:${i}`, type: it[0], w: w.id })));
+const PROFILES: ProfileId[] = ['guerreiro', 'mago'];
 
 function stats(p: ProfileState) {
   const doneN = ALL_ITEMS.filter((x) => p.done[x.key]).length;
   const xp = ALL_ITEMS.reduce((s, x) => s + (p.done[x.key] ? XP[x.type] : 0), 0);
-  const maxXp = ALL_ITEMS.reduce((s, x) => s + XP[x.type], 0);
   const pct = ALL_ITEMS.length ? Math.round((doneN / ALL_ITEMS.length) * 100) : 0;
   let r = 0;
   RANKS.forEach(([, min], i) => { if (pct >= min) r = i; });
-  return { doneN, xp, maxXp, pct, rank: r };
+  return { doneN, xp, pct, rank: r };
 }
 
 interface Toast { id: number; text: string; big?: boolean }
+type Cloud = 'off' | 'out' | 'syncing' | 'saved' | 'dirty' | 'error';
 
 function applyPalette(p: Palette) {
   const s = document.documentElement.style;
@@ -38,9 +41,10 @@ function applyPalette(p: Palette) {
 export default function App() {
   const [state, setState] = useState<AppState>(load);
   const [tab, setTab] = useState(() => readPref('tab', 'w4'));
-  const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState<'none' | 'settings' | 'login'>('none');
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [syncMsg, setSyncMsg] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
+  const [cloud, setCloud] = useState<Cloud>(syncEnabled ? 'out' : 'off');
   const bannerRef = useRef<HTMLDivElement>(null);
 
   const p = state.current;
@@ -49,6 +53,8 @@ export default function App() {
   const world = WORLDS.find((w) => w.id === tab);
   const activeTab = world ? tab : 'forge';
   const pal = world?.pal ?? FORGE_PAL;
+  const hero = IMAGES.hero[activeTab] ?? IMAGES.heroDefault;
+  const userId = session?.user.id;
 
   useEffect(() => { applyPalette(pal); }, [pal]);
   useEffect(() => {
@@ -58,56 +64,88 @@ export default function App() {
     if (btn && nav) nav.scrollTo({ left: btn.offsetLeft - nav.offsetLeft - 16, behavior: 'smooth' });
   }, [activeTab]);
 
-  // salvar local sempre; nuvem com atraso
-  // só envia depois de puxar a nuvem uma vez, pra não sobrescrever progresso mais novo
-  const pulled = useRef(false);
-  const pushedAt = useRef<Record<ProfileId, number>>({ guerreiro: 0, mago: 0 });
-
-  useEffect(() => {
-    save(state);
-    if (!syncEnabled || !pulled.current) return;
-    const t = setTimeout(async () => {
-      try {
-        for (const id of ['guerreiro', 'mago'] as ProfileId[]) {
-          const pr = state.profiles[id];
-          if (pr.updated !== pushedAt.current[id]) { await push(id, pr); pushedAt.current[id] = pr.updated; }
-        }
-        setSyncMsg(`Salvo na nuvem às ${new Date().toLocaleTimeString('pt-BR').slice(0, 5)}.`);
-      } catch { setSyncMsg('Sem conexão: salvo só neste aparelho por enquanto.'); }
-    }, 1200);
-    return () => clearTimeout(t);
-  }, [state]);
-
-  const syncNow = useCallback(async () => {
-    if (!syncEnabled) return;
-    try {
-      const remote: Partial<Record<ProfileId, ProfileState>> = {};
-      for (const id of ['guerreiro', 'mago'] as ProfileId[]) {
-        const r = await pull(id);
-        if (r) { remote[id] = r; }
-      }
-      pulled.current = true;
-      setState((s) => {
-        const profiles = { ...s.profiles };
-        for (const id of ['guerreiro', 'mago'] as ProfileId[]) {
-          const r = remote[id];
-          if (r && r.updated >= profiles[id].updated) { profiles[id] = r; pushedAt.current[id] = r.updated; }
-        }
-        return { ...s, profiles };
-      });
-      setSyncMsg('Sincronizado com a nuvem.');
-    } catch { setSyncMsg('Não consegui falar com o Supabase.'); }
-  }, []);
-
-  // puxa da nuvem uma vez ao abrir (vence o mais recente)
-  useEffect(() => { syncNow(); /* eslint-disable-next-line */ }, []);
-
-  const toast = (text: string, big = false) => {
+  const toast = useCallback((text: string, big = false) => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, text, big }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), big ? 3200 : 1800);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), big ? 3200 : 1900);
+  }, []);
+
+  // ---------- nuvem ----------
+  const pulled = useRef(false);
+  const pushedAt = useRef<Record<ProfileId, number>>({ guerreiro: -1, mago: -1 });
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useEffect(() => {
+    if (!supa) return;
+    supa.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = supa.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const pushAll = useCallback(async (force = false) => {
+    if (!userId || !pulled.current) return;
+    setCloud('syncing');
+    try {
+      for (const id of PROFILES) {
+        const pr = stateRef.current.profiles[id];
+        if (force || pr.updated !== pushedAt.current[id]) { await push(userId, id, pr); pushedAt.current[id] = pr.updated; }
+      }
+      setCloud('saved');
+    } catch { setCloud('error'); }
+  }, [userId]);
+
+  // ao entrar (ou abrir já logado): puxa a nuvem; vence o perfil mexido por último
+  useEffect(() => {
+    pulled.current = false;
+    pushedAt.current = { guerreiro: -1, mago: -1 };
+    if (!userId) { setCloud(syncEnabled ? 'out' : 'off'); return; }
+    let alive = true;
+    (async () => {
+      setCloud('syncing');
+      try {
+        const remote: Partial<Record<ProfileId, ProfileState>> = {};
+        for (const id of PROFILES) { const r = await pull(id); if (r) remote[id] = r; }
+        if (!alive) return;
+        setState((s) => {
+          const profiles = { ...s.profiles };
+          for (const id of PROFILES) {
+            const r = remote[id];
+            if (r && r.updated >= profiles[id].updated) { profiles[id] = r; pushedAt.current[id] = r.updated; }
+          }
+          return { ...s, profiles };
+        });
+        pulled.current = true;
+        setCloud('saved');
+        setTimeout(() => pushAll(), 50); // envia o que só existia neste aparelho
+      } catch { if (alive) setCloud('error'); }
+    })();
+    return () => { alive = false; };
+  }, [userId, pushAll]);
+
+  // salva local sempre; nuvem 1,2 s depois da última mudança
+  useEffect(() => {
+    save(state);
+    if (!userId || !pulled.current) return;
+    const dirty = PROFILES.some((id) => state.profiles[id].updated !== pushedAt.current[id]);
+    if (!dirty) return;
+    setCloud('dirty');
+    const t = setTimeout(() => pushAll(), 1200);
+    return () => clearTimeout(t);
+  }, [state, userId, pushAll]);
+
+  const onCloud = async () => {
+    if (cloud === 'off') return;
+    if (!userId) { setSheet('login'); return; }
+    await pushAll(true);
+    toast('Salvo na nuvem ☁');
   };
 
+  const cloudLabel: Record<Cloud, string> = {
+    off: '', out: '☁ Entrar', syncing: '☁ Salvando…', saved: '☁ Salvo ✓', dirty: '☁ Salvar', error: '☁ Sem rede',
+  };
+
+  // ---------- progresso ----------
   const updateProfile = (fn: (pr: ProfileState) => ProfileState) =>
     setState((s) => ({ ...s, profiles: { ...s.profiles, [s.current]: { ...fn(s.profiles[s.current]), updated: Date.now() } } }));
 
@@ -136,12 +174,12 @@ export default function App() {
     if (!was) toast(key.startsWith('n') ? 'Novo encaixe!' : 'Amuleto guardado');
   };
 
+  // ---------- parallax ----------
   const onBannerMove = (e: React.PointerEvent) => {
     const el = bannerRef.current; if (!el) return;
     const r = el.getBoundingClientRect();
     el.style.setProperty('--px', (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3));
   };
-
   useEffect(() => {
     const onScroll = () => bannerRef.current?.style.setProperty('--py', Math.min(window.scrollY / 300, 1).toFixed(3));
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -156,18 +194,27 @@ export default function App() {
       <div className="app">
         <header className="top">
           <div className="profiles" role="tablist" aria-label="Perfil de save">
-            {(['guerreiro', 'mago'] as ProfileId[]).map((id) => (
+            {PROFILES.map((id) => (
               <button key={id} type="button" role="tab" aria-selected={p === id}
                 className={p === id ? 'on' : ''} onClick={() => setState((s) => ({ ...s, current: id }))}>
                 {id === 'guerreiro' ? '⚔ Guerreiro' : '✦ Mago'}
               </button>
             ))}
           </div>
-          <button type="button" className="icon-btn" onClick={() => setOpen(true)} aria-label="Configurações">⚙</button>
+          <div className="top-right">
+            {cloud !== 'off' && (
+              <button type="button" className={`cloud cloud-${cloud}`} onClick={onCloud}
+                aria-label={userId ? 'Salvar na nuvem agora' : 'Entrar para salvar na nuvem'}>
+                {cloudLabel[cloud]}
+              </button>
+            )}
+            <button type="button" className="icon-btn" onClick={() => setSheet('settings')} aria-label="Configurações">⚙</button>
+          </div>
         </header>
 
         <div className="hero">
-          <ImageSlot slot="hero" src={IMAGES.hero} label="O Cavaleiro" hint={IMAGES.hero} ratio="16 / 10" className="hero-img" />
+          <ImageSlot key={activeTab} slot={`hero:${activeTab}`} src={hero.src} pos={hero.pos}
+            label="O Cavaleiro" hint={hero.src} ratio="16 / 10" className="hero-img" />
           <div className="hero-text">
             <p className="eyebrow">Hollow Knight · save {p === 'guerreiro' ? 'Guerreiro' : 'Mago'}</p>
             <h1>Diário do Cavaleiro</h1>
@@ -210,8 +257,8 @@ export default function App() {
         </main>
 
         <footer className="end">
-          <ImageSlot slot="end" src={IMAGES.end} label="Cavaleiro · fim da página" hint={IMAGES.end} ratio="21 / 9" />
-          <p className="muted small">Diário do Cavaleiro · uso pessoal · fã-projeto sem arte oficial</p>
+          <ImageSlot slot="end" src={IMAGES.end.src} pos={IMAGES.end.pos} label="Cavaleiro · fim da página" hint={IMAGES.end.src} ratio="16 / 10" />
+          <p className="muted small">Diário do Cavaleiro · uso pessoal</p>
         </footer>
       </div>
 
@@ -219,9 +266,16 @@ export default function App() {
         {toasts.map((t) => <div key={t.id} className={`toast ${t.big ? 'big' : ''}`}>{t.text}</div>)}
       </div>
 
-      {open && (
-        <Settings state={state} syncMsg={syncMsg} onClose={() => setOpen(false)} onSyncNow={syncNow}
-          onImport={(s) => setState(s)}
+      {sheet === 'login' && (
+        <Login onClose={() => setSheet('none')} onDone={(m) => { toast(m, true); setSheet('none'); }} />
+      )}
+      {sheet === 'settings' && (
+        <Settings state={state} cloud={cloud} email={session?.user.email}
+          onClose={() => setSheet('none')}
+          onLogin={() => setSheet('login')}
+          onLogout={async () => { await signOut(); toast('Saiu da conta. O progresso continua neste aparelho.'); }}
+          onSyncNow={() => pushAll(true)}
+          onImport={(s) => setState({ ...s, profiles: { guerreiro: { ...s.profiles.guerreiro, updated: Date.now() }, mago: { ...s.profiles.mago, updated: Date.now() } } })}
           onReset={(id) => setState((s) => ({ ...s, profiles: { ...s.profiles, [id]: emptyProfile(s.profiles[id].unlocked) } }))}
           onUnlocked={(n) => updateProfile((pr) => ({ ...pr, unlocked: n }))} />
       )}

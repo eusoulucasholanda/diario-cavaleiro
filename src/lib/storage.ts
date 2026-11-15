@@ -26,8 +26,9 @@ function fresh(): AppState {
     v: 1,
     current: 'guerreiro',
     profiles: {
-      guerreiro: { done: toMap(SEED.done), fk: toMap(SEED.fk), unlocked: 4, updated: Date.now() },
-      mago: emptyProfile(1),
+      // updated: 0 = "nunca mexido": no 1º login, o que estiver na nuvem vence
+      guerreiro: { done: toMap(SEED.done), fk: toMap(SEED.fk), unlocked: 4, updated: 0 },
+      mago: { ...emptyProfile(1), updated: 0 },
     },
   };
 }

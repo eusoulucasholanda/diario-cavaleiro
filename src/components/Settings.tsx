@@ -7,15 +7,18 @@ import { clearImages } from '../lib/idb';
 
 interface Props {
   state: AppState;
-  syncMsg: string;
+  cloud: string;
+  email?: string;
   onClose: () => void;
   onImport: (s: AppState) => void;
   onReset: (p: ProfileId) => void;
   onUnlocked: (n: number) => void;
   onSyncNow: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
 }
 
-export function Settings({ state, syncMsg, onClose, onImport, onReset, onUnlocked, onSyncNow }: Props) {
+export function Settings({ state, cloud, email, onClose, onImport, onReset, onUnlocked, onSyncNow, onLogin, onLogout }: Props) {
   const file = useRef<HTMLInputElement>(null);
   const [armed, setArmed] = useState(false);
   const [msg, setMsg] = useState('');
@@ -57,14 +60,22 @@ export function Settings({ state, syncMsg, onClose, onImport, onReset, onUnlocke
           {WORLDS.map((w, i) => <option key={w.id} value={i + 1}>Até {w.n} · {w.t}</option>)}
         </select>
 
-        <h3>Sincronização</h3>
-        {syncEnabled ? (
+        <h3>Conta e nuvem</h3>
+        {!syncEnabled ? (
+          <p className="muted">Nuvem desligada. O progresso fica só neste aparelho (use exportar/importar).</p>
+        ) : email ? (
           <>
-            <p className="muted">Supabase ligado. {syncMsg}</p>
-            <div className="btns"><button type="button" onClick={onSyncNow}>Sincronizar agora</button></div>
+            <p className="muted">Conectado como <strong>{email}</strong>. Salva sozinho a cada marcação{cloud === 'error' ? ' (agora sem rede: tenta de novo quando voltar)' : ''}.</p>
+            <div className="btns">
+              <button type="button" onClick={onSyncNow}>Salvar agora</button>
+              <button type="button" onClick={onLogout}>Sair</button>
+            </div>
           </>
         ) : (
-          <p className="muted">Desligada. O progresso fica só neste aparelho (use exportar/importar). Para ligar, veja o README.</p>
+          <>
+            <p className="muted">Entre com a mesma conta no celular e no computador para o progresso ficar igual nos dois.</p>
+            <div className="btns"><button type="button" className="primary" onClick={onLogin}>Entrar / criar conta</button></div>
+          </>
         )}
 
         <h3>Prints enviados pelo app</h3>
