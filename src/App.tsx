@@ -95,33 +95,51 @@ export default function App() {
     } catch { setCloud('error'); }
   }, [userId]);
 
-  // ao entrar (ou abrir já logado): puxa a nuvem; vence o perfil mexido por último
+  // puxa a nuvem e funde: vence o perfil mexido por último
+  const pullMerge = useCallback(async (isAlive: () => boolean = () => true) => {
+    if (!userId) return;
+    setCloud('syncing');
+    try {
+      const remote: Partial<Record<ProfileId, ProfileState>> = {};
+      for (const id of PROFILES) { const r = await pull(id); if (r) remote[id] = r; }
+      if (!isAlive()) return;
+      setState((s) => {
+        const profiles = { ...s.profiles };
+        for (const id of PROFILES) {
+          const r = remote[id];
+          if (r && r.updated >= profiles[id].updated) { profiles[id] = r; pushedAt.current[id] = r.updated; }
+        }
+        return { ...s, profiles };
+      });
+      pulled.current = true;
+      setCloud('saved');
+      setTimeout(() => pushAll(), 50); // envia o que só existia neste aparelho
+    } catch { if (isAlive()) setCloud('error'); }
+  }, [userId, pushAll]);
+
+  // ao entrar (ou abrir já logado)
   useEffect(() => {
     pulled.current = false;
     pushedAt.current = { guerreiro: -1, mago: -1 };
     if (!userId) { setCloud(syncEnabled ? 'out' : 'off'); return; }
     let alive = true;
-    (async () => {
-      setCloud('syncing');
-      try {
-        const remote: Partial<Record<ProfileId, ProfileState>> = {};
-        for (const id of PROFILES) { const r = await pull(id); if (r) remote[id] = r; }
-        if (!alive) return;
-        setState((s) => {
-          const profiles = { ...s.profiles };
-          for (const id of PROFILES) {
-            const r = remote[id];
-            if (r && r.updated >= profiles[id].updated) { profiles[id] = r; pushedAt.current[id] = r.updated; }
-          }
-          return { ...s, profiles };
-        });
-        pulled.current = true;
-        setCloud('saved');
-        setTimeout(() => pushAll(), 50); // envia o que só existia neste aparelho
-      } catch { if (alive) setCloud('error'); }
-    })();
+    pullMerge(() => alive);
     return () => { alive = false; };
-  }, [userId, pushAll]);
+  }, [userId, pullMerge]);
+
+  // ao voltar pro app (trocar de aba, desbloquear o celular): busca o que mudou no outro aparelho
+  useEffect(() => {
+    if (!userId) return;
+    let last = Date.now();
+    const onBack = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 3000) return;
+      last = Date.now();
+      pullMerge();
+    };
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    return () => { document.removeEventListener('visibilitychange', onBack); window.removeEventListener('focus', onBack); };
+  }, [userId, pullMerge]);
 
   // salva local sempre; nuvem 1,2 s depois da última mudança
   useEffect(() => {
